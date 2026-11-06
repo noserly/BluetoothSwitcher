@@ -12,6 +12,8 @@ object BtUtil {
     const val PREFS = "btalarm"
     const val KEY_HANDLED = "handled_trigger"
     const val KEY_ENABLED = "enabled"
+    const val KEY_AUTO_OFF = "auto_off"
+    const val AUTO_OFF_DELAY_MS = 30_000L
     const val MINUTES_BEFORE = 10L
 
     @SuppressLint("MissingPermission")

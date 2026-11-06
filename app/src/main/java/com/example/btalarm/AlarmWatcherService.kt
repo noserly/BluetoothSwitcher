@@ -20,12 +20,11 @@ class AlarmWatcherService : Service() {
 
     override fun onCreate() {
         super.onCreate()
-        val nm = getSystemService(NotificationManager::class.java)
-        nm.createNotificationChannel(
+        getSystemService(NotificationManager::class.java).createNotificationChannel(
             NotificationChannel("watch", "Слежение за будильником", NotificationManager.IMPORTANCE_LOW)
         )
         val n = Notification.Builder(this, "watch")
-            .setContentTitle("BT Alarm Off работает")
+            .setContentTitle("BT Alarm Off активен")
             .setContentText("Bluetooth выключится за ${BtUtil.MINUTES_BEFORE} мин до будильника")
             .setSmallIcon(android.R.drawable.stat_sys_data_bluetooth)
             .setOngoing(true)
@@ -37,22 +36,35 @@ class AlarmWatcherService : Service() {
         schedule()
     }
 
+    private fun pi(code: Int, cls: Class<*>, triggerAt: Long = 0L): PendingIntent =
+        PendingIntent.getBroadcast(
+            this, code,
+            Intent(this, cls).putExtra("trigger_at", triggerAt),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+
+    private fun setAlarm(am: AlarmManager, at: Long, p: PendingIntent) {
+        if (am.canScheduleExactAlarms()) am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, p)
+        else am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, p)
+    }
+
     private fun schedule() {
         val am = getSystemService(AlarmManager::class.java)
-        val pi = { triggerAt: Long ->
-            PendingIntent.getBroadcast(
-                this, 0,
-                Intent(this, BtOffReceiver::class.java).putExtra("trigger_at", triggerAt),
-                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
-            )
-        }
-        // сбрасываем ранее поставленное срабатывание
-        am.cancel(pi(0L))
+        am.cancel(pi(0, BtOffReceiver::class.java))
+        am.cancel(pi(1, AutoOffReceiver::class.java))
 
         val next = am.nextAlarmClock ?: return
         val triggerAt = next.triggerTime
         val now = System.currentTimeMillis()
-        if (triggerAt <= now || BtUtil.handled(this) == triggerAt) return
+        if (triggerAt <= now) return
+
+        // выключить приложение сразу после срабатывания будильника
+        val prefs = getSharedPreferences(BtUtil.PREFS, Context.MODE_PRIVATE)
+        if (prefs.getBoolean(BtUtil.KEY_AUTO_OFF, true)) {
+            setAlarm(am, triggerAt + BtUtil.AUTO_OFF_DELAY_MS, pi(1, AutoOffReceiver::class.java, triggerAt))
+        }
+
+        if (BtUtil.handled(this) == triggerAt) return
 
         val fireAt = triggerAt - BtUtil.MINUTES_BEFORE * 60_000L
         if (fireAt <= now) {
@@ -61,9 +73,7 @@ class AlarmWatcherService : Service() {
             BtUtil.markHandled(this, triggerAt)
             return
         }
-        val p = pi(triggerAt)
-        if (am.canScheduleExactAlarms()) am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, fireAt, p)
-        else am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, fireAt, p)
+        setAlarm(am, fireAt, pi(0, BtOffReceiver::class.java, triggerAt))
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -72,13 +82,9 @@ class AlarmWatcherService : Service() {
     }
 
     override fun onDestroy() {
-        // при выключении переключателя отменяем запланированное отключение Bluetooth
-        getSystemService(AlarmManager::class.java).cancel(
-            PendingIntent.getBroadcast(
-                this, 0, Intent(this, BtOffReceiver::class.java),
-                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
-            )
-        )
+        val am = getSystemService(AlarmManager::class.java)
+        am.cancel(pi(0, BtOffReceiver::class.java))
+        am.cancel(pi(1, AutoOffReceiver::class.java))
         unregisterReceiver(alarmChangedReceiver)
         super.onDestroy()
     }
