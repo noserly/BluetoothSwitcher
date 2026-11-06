@@ -58,7 +58,7 @@ class MainActivity : Activity() {
 
         power = PowerButtonView(this).apply {
             layoutParams = LinearLayout.LayoutParams(dp(260), dp(260))
-            setOnClickListener { setEnabled(!active) }
+            setOnClickListener { this@MainActivity.toggleWatching(!active) }
         }
         status = tv("", 26f, textMain, true).apply { gravity = Gravity.CENTER }
         sub = tv("", 15f, textDim).apply { gravity = Gravity.CENTER; setPadding(dp(24), dp(6), dp(24), 0) }
@@ -144,7 +144,7 @@ class MainActivity : Activity() {
         }
     }
 
-    private fun setEnabled(on: Boolean) {
+    private fun toggleWatching(on: Boolean) {
         if (!on) {
             prefs.edit().putBoolean(BtUtil.KEY_ENABLED, false).apply()
             stopService(Intent(this, AlarmWatcherService::class.java))
