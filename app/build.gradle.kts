@@ -13,7 +13,7 @@ android {
         // ВАЖНО: с targetSdk 33+ Android запрещает приложениям вызывать BluetoothAdapter.disable()
         targetSdk = 32
         versionCode = 1
-        versionName = "1.0"
+        versionName = "1.1"
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
