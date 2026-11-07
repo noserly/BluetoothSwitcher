@@ -51,17 +51,17 @@ class AlarmWatcherService : Service() {
     private fun schedule() {
         val am = getSystemService(AlarmManager::class.java)
         am.cancel(pi(0, BtOffReceiver::class.java))
-        am.cancel(pi(1, AutoOffReceiver::class.java))
+        am.cancel(pi(1, AfterAlarmReceiver::class.java))
 
         val next = am.nextAlarmClock ?: return
         val triggerAt = next.triggerTime
         val now = System.currentTimeMillis()
         if (triggerAt <= now) return
 
-        // выключить приложение сразу после срабатывания будильника
+        // после будильника: вернуть Bluetooth и/или выключить приложение
         val prefs = getSharedPreferences(BtUtil.PREFS, Context.MODE_PRIVATE)
-        if (prefs.getBoolean(BtUtil.KEY_AUTO_OFF, true)) {
-            setAlarm(am, triggerAt + BtUtil.AUTO_OFF_DELAY_MS, pi(1, AutoOffReceiver::class.java, triggerAt))
+        if (prefs.getBoolean(BtUtil.KEY_AUTO_OFF, true) || prefs.getBoolean(BtUtil.KEY_BT_ON_AFTER, false)) {
+            setAlarm(am, triggerAt + BtUtil.AFTER_ALARM_DELAY_MS, pi(1, AfterAlarmReceiver::class.java, triggerAt))
         }
 
         if (BtUtil.handled(this) == triggerAt) return
@@ -69,8 +69,7 @@ class AlarmWatcherService : Service() {
         val fireAt = triggerAt - BtUtil.MINUTES_BEFORE * 60_000L
         if (fireAt <= now) {
             // до будильника уже меньше 10 минут — выключаем сразу, один раз
-            BtUtil.disableBluetooth(this)
-            BtUtil.markHandled(this, triggerAt)
+            BtUtil.turnOffForAlarm(this, triggerAt)
             return
         }
         setAlarm(am, fireAt, pi(0, BtOffReceiver::class.java, triggerAt))
@@ -84,7 +83,7 @@ class AlarmWatcherService : Service() {
     override fun onDestroy() {
         val am = getSystemService(AlarmManager::class.java)
         am.cancel(pi(0, BtOffReceiver::class.java))
-        am.cancel(pi(1, AutoOffReceiver::class.java))
+        am.cancel(pi(1, AfterAlarmReceiver::class.java))
         unregisterReceiver(alarmChangedReceiver)
         super.onDestroy()
     }

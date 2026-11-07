@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- колокольчики будильника -->
+    <path android:fillColor="#4ADE80"
+        android:pathData="M31,37 a6,6 0 1,0 12,0 a6,6 0 1,0 -12,0" />
+    <path android:fillColor="#4ADE80"
+        android:pathData="M65,37 a6,6 0 1,0 12,0 a6,6 0 1,0 -12,0" />
+
+    <!-- ножки -->
+    <path android:strokeColor="#4ADE80" android:strokeWidth="3.5" android:strokeLineCap="round"
+        android:pathData="M44,77 L40,82" />
+    <path android:strokeColor="#4ADE80" android:strokeWidth="3.5" android:strokeLineCap="round"
+        android:pathData="M64,77 L68,82" />
+
+    <!-- кнопка сверху -->
+    <path android:strokeColor="#4ADE80" android:strokeWidth="3.5" android:strokeLineCap="round"
+        android:pathData="M54,36 L54,32" />
+
+    <!-- циферблат -->
+    <path android:fillColor="#26262B" android:strokeColor="#4ADE80" android:strokeWidth="3.5"
+        android:pathData="M32,58 a22,22 0 1,0 44,0 a22,22 0 1,0 -44,0" />
+
+    <!-- значок Bluetooth -->
+    <path android:strokeColor="#F2F2F5" android:strokeWidth="3"
+        android:strokeLineCap="round" android:strokeLineJoin="round"
+        android:pathData="M46,52 L62,66 L54,72 L54,44 L62,52 L46,66" />
+
+    <!-- перечёркивающая линия: тёмная подложка + зелёная -->
+    <path android:strokeColor="#26262B" android:strokeWidth="8" android:strokeLineCap="round"
+        android:pathData="M43,47 L65,69" />
+    <path android:strokeColor="#4ADE80" android:strokeWidth="3.5" android:strokeLineCap="round"
+        android:pathData="M43,47 L65,69" />
+</vector>

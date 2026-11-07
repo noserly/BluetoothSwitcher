@@ -12,6 +12,8 @@
     <application
         android:label="BT Alarm Off"
         android:allowBackup="false"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
         android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
 
         <activity android:name=".MainActivity" android:exported="true">
@@ -23,7 +25,7 @@
 
         <service android:name=".AlarmWatcherService" android:exported="false" />
         <receiver android:name=".BtOffReceiver" android:exported="false" />
-        <receiver android:name=".AutoOffReceiver" android:exported="false" />
+        <receiver android:name=".AfterAlarmReceiver" android:exported="false" />
         <receiver android:name=".BootReceiver" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />

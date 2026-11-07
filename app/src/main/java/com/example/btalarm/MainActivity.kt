@@ -16,6 +16,7 @@ import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
 import android.widget.LinearLayout
+import android.widget.ScrollView
 import android.widget.Switch
 import android.widget.TextView
 import androidx.core.content.ContextCompat
@@ -36,6 +37,8 @@ class MainActivity : Activity() {
     private lateinit var sub: TextView
     private lateinit var alarmValue: TextView
     private lateinit var autoOff: Switch
+    private lateinit var btOn: Switch
+    private var loading = false
 
     private val prefs get() = getSharedPreferences(BtUtil.PREFS, Context.MODE_PRIVATE)
     private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
@@ -45,6 +48,42 @@ class MainActivity : Activity() {
     private fun tv(text: String, size: Float, color: Int, bold: Boolean = false) = TextView(this).apply {
         this.text = text; textSize = size; setTextColor(color)
         if (bold) typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+    }
+
+    private fun styledSwitch(key: String, def: Boolean) = Switch(this).apply {
+        thumbTintList = ColorStateList.valueOf(Color.WHITE)
+        trackTintList = ColorStateList(
+            arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()),
+            intArrayOf(accent, 0xFF4A4A50.toInt())
+        )
+        isChecked = prefs.getBoolean(key, def)
+        setOnCheckedChangeListener { _, on ->
+            if (loading) return@setOnCheckedChangeListener
+            prefs.edit().putBoolean(key, on).apply()
+            // пересчитать расписание, если слежение уже работает
+            if (prefs.getBoolean(BtUtil.KEY_ENABLED, false))
+                ContextCompat.startForegroundService(this@MainActivity, Intent(this@MainActivity, AlarmWatcherService::class.java))
+        }
+    }
+
+    private fun settingRow(title: String, desc: String, sw: Switch) = LinearLayout(this).apply {
+        orientation = LinearLayout.HORIZONTAL
+        gravity = Gravity.CENTER_VERTICAL
+        addView(LinearLayout(this@MainActivity).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(0, 0, dp(12), 0)
+            layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+            addView(tv(title, 16f, textMain))
+            addView(tv(desc, 12f, textDim))
+        })
+        addView(sw)
+    }
+
+    private fun divider() = View(this).apply {
+        setBackgroundColor(0xFF2C2C31.toInt())
+        layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(1)).apply {
+            topMargin = dp(14); bottomMargin = dp(14)
+        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -57,7 +96,7 @@ class MainActivity : Activity() {
         }
 
         power = PowerButtonView(this).apply {
-            layoutParams = LinearLayout.LayoutParams(dp(260), dp(260))
+            layoutParams = LinearLayout.LayoutParams(dp(250), dp(250))
             setOnClickListener { this@MainActivity.toggleWatching(!active) }
         }
         status = tv("", 26f, textMain, true).apply { gravity = Gravity.CENTER }
@@ -66,42 +105,15 @@ class MainActivity : Activity() {
         val center = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
+            minimumHeight = dp(330)
             layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f)
             addView(power); addView(status); addView(sub)
         }
 
-        // карточка внизу
-        alarmValue = tv("", 18f, textMain, true)
-        autoOff = Switch(this).apply {
-            thumbTintList = ColorStateList.valueOf(Color.WHITE)
-            trackTintList = ColorStateList(
-                arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()),
-                intArrayOf(accent, 0xFF4A4A50.toInt())
-            )
-            setOnCheckedChangeListener { b, on ->
-                if (!b.isPressed) return@setOnCheckedChangeListener
-                prefs.edit().putBoolean(BtUtil.KEY_AUTO_OFF, on).apply()
-                if (prefs.getBoolean(BtUtil.KEY_ENABLED, false))
-                    ContextCompat.startForegroundService(this@MainActivity, Intent(this@MainActivity, AlarmWatcherService::class.java))
-            }
-        }
-        val divider = View(this).apply {
-            setBackgroundColor(0xFF2C2C31.toInt())
-            layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(1)).apply {
-                topMargin = dp(14); bottomMargin = dp(14)
-            }
-        }
-        val autoRow = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            addView(LinearLayout(this@MainActivity).apply {
-                orientation = LinearLayout.VERTICAL
-                layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
-                addView(tv("Выключаться после будильника", 16f, textMain))
-                addView(tv("Приложение само отключится, когда будильник прозвонит", 12f, textDim))
-            })
-            addView(autoOff)
-        }
+        alarmValue = tv("", 18f, textMain, true).apply { setPadding(0, dp(4), 0, 0) }
+        autoOff = styledSwitch(BtUtil.KEY_AUTO_OFF, true)
+        btOn = styledSwitch(BtUtil.KEY_BT_ON_AFTER, false)
+
         val cardView = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(20), dp(18), dp(20), dp(18))
@@ -110,22 +122,32 @@ class MainActivity : Activity() {
                 bottomMargin = dp(24)
             }
             addView(tv("Ближайший будильник", 13f, textDim))
-            addView(alarmValue.apply { setPadding(0, dp(4), 0, 0) })
-            addView(divider)
-            addView(autoRow)
+            addView(alarmValue)
+            addView(divider())
+            addView(settingRow("Включить Bluetooth после будильника",
+                "Вернёт Bluetooth, если приложение выключило его перед будильником", btOn))
+            addView(divider())
+            addView(settingRow("Выключаться после будильника",
+                "Приложение само отключится, когда будильник прозвонит", autoOff))
         }
 
-        setContentView(LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
+        setContentView(ScrollView(this).apply {
+            isFillViewport = true
             setBackgroundColor(bg)
-            setPadding(dp(20), dp(56), dp(20), dp(0))
-            addView(title); addView(center); addView(cardView)
+            addView(LinearLayout(this@MainActivity).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding(dp(20), dp(56), dp(20), 0)
+                addView(title); addView(center); addView(cardView)
+            })
         })
     }
 
     override fun onResume() {
         super.onResume()
+        loading = true
         autoOff.isChecked = prefs.getBoolean(BtUtil.KEY_AUTO_OFF, true)
+        btOn.isChecked = prefs.getBoolean(BtUtil.KEY_BT_ON_AFTER, false)
+        loading = false
         power.setActive(prefs.getBoolean(BtUtil.KEY_ENABLED, false), false)
         updateTexts()
     }
